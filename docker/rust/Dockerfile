@@ -2,6 +2,7 @@
 FROM rust:latest as develop-stage
 WORKDIR /app
 RUN cargo install cargo-watch
+RUN cargo install diesel_cli
 COPY . .
 
 # ビルド環境

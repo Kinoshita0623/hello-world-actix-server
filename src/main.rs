@@ -1,23 +1,55 @@
+#[macro_use]
+extern crate diesel;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use rand::Rng;
+use diesel::pg::PgConnection;
 
-struct AppState {
-    pub app_name: String
+use diesel::prelude::*;
+mod repositories;
+mod dao;
+mod models;
+use crate::dao::*;
+mod schema;
+use crate::repositories::*;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use std::sync::Arc;
+
+#[derive(Clone)]
+struct AppState<'a> {
+    pub pool: Box<Pool<ConnectionManager<PgConnection>>>,
+    pub hoge: &'a str,
 }
 
-
-
+impl<'a> AppState<'a> {
+    pub fn user_repository(&self) -> impl UserRepository {
+        
+        
+        return UserDAO {
+            pool: self.pool.clone()
+        }
+    }
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     
-    HttpServer::new(|| {
-        let mut rnd = rand::thread_rng();
-        let n: usize = rnd.gen();
+    let url = "postgres://dbuser:secret@db:5432/database";
+    
+    let manager = ConnectionManager::<PgConnection>::new(url);
+    let pool: Pool<ConnectionManager<PgConnection>> = Pool::builder().max_size(20).build(manager).expect("Poolの作成に失敗");
+  
+    
+    let app_state = AppState {
+        pool: Box::new(pool),
+        hoge: "hogehoge"
+    };
+    //let arc = Arc::new(app_state);
+    let data = web::Data::new(app_state);
+    
+    HttpServer::new( move || {
         App::new()
-            .data(AppState {
-                app_name: String::from(format!("Actix-web number:{}", n)),
-            })
+            .app_data(data.clone())
             .service(index)
             .service(echo)
             .route("/hey", web::get().to(manual_hello))
@@ -28,9 +60,10 @@ async fn main() -> std::io::Result<()> {
 }
 
 #[get("/")]
-async fn index(data: web::Data<AppState>) -> String {
-    let app_name = &data.app_name;
-    return format!("Hello {}", app_name);
+async fn index<'a>(app_state: web::Data<AppState<'a>>) -> String {
+    let repo = &app_state.user_repository();
+    return repo.message();
+    
 }
 
 #[get("/hello")]
