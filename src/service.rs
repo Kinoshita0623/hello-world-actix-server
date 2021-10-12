@@ -6,7 +6,6 @@ use diesel::prelude::*;
 use crate::models::*;
 use diesel::r2d2::Pool;
 use diesel::r2d2::ConnectionManager;
-use diesel::result::Error;
 use crate::state::AppState;
 use crate::repositories::UserRepository;
 use serde::Deserialize;
@@ -37,9 +36,9 @@ pub struct AuthResult {
 
 
 pub trait UserService {
-    fn login(&self, loginUser: LoginUser) -> Result<AuthResult, ServiceError>;
-    fn logout(&self, logoutUser: LogoutUser) -> Result<(), ServiceError>;
-    fn register(&self, registerUser: RegisterUser) -> Result<AuthResult, ServiceError>;
+    fn login(&self, login_user: LoginUser) -> Result<AuthResult, ServiceError>;
+    fn logout(&self, logout_user: LogoutUser) -> Result<(), ServiceError>;
+    fn register(&self, register_user: RegisterUser) -> Result<AuthResult, ServiceError>;
 }
 
 pub struct PsqlUserService {
@@ -48,18 +47,18 @@ pub struct PsqlUserService {
 }
 
 impl  UserService for PsqlUserService {
-    fn login(&self, loginUser: LoginUser) -> Result<AuthResult, ServiceError> {
+    fn login(&self, login_user: LoginUser) -> Result<AuthResult, ServiceError> {
         let connection = match self.pool.get() {
             Ok(connection) => connection,
             Err(_) => return Err(ServiceError::Server { message: None }),
         };
 
-        let user = match users::dsl::users.filter(users::username.eq(loginUser.username)).first::<User>(&connection) {
+        let user = match users::dsl::users.filter(users::username.eq(login_user.username)).first::<User>(&connection) {
             Ok(user) => user,
             Err(err) => return Err(ServiceError::from_diesel_result_error(err))
         };
         
-        if !user.check_password(loginUser.password) {
+        if !user.check_password(login_user.password) {
             return Err(
                 ServiceError::Client {
                     message: String::from("password not missmatch")
@@ -76,7 +75,7 @@ impl  UserService for PsqlUserService {
                         }
                 )
             }
-            Err(err) => {
+            Err(_) => {
                 Err(
                     ServiceError::Server {
                         message: Some(String::from(""))
@@ -88,9 +87,9 @@ impl  UserService for PsqlUserService {
 
     }
 
-    fn logout(&self, logoutUser: LogoutUser) -> Result<(), ServiceError> {
+    fn logout(&self, logout_user: LogoutUser) -> Result<(), ServiceError> {
         if let Ok(connection) = self.pool.get() {
-            return if diesel::delete(user_tokens::dsl::user_tokens.filter(user_tokens::token.eq(logoutUser.token))).execute(&connection).is_ok() {
+            return if diesel::delete(user_tokens::dsl::user_tokens.filter(user_tokens::token.eq(logout_user.token))).execute(&connection).is_ok() {
                 Ok(())
             } else {
                 Err(ServiceError::Server {
@@ -101,16 +100,16 @@ impl  UserService for PsqlUserService {
         return Err(ServiceError::NotFound);
     }
 
-    fn register(&self, registerUser: RegisterUser) -> Result<AuthResult, ServiceError> {
+    fn register(&self, register_user: RegisterUser) -> Result<AuthResult, ServiceError> {
         let connection = match self.pool.get() {
             Ok(connection) => connection,
-            Err(e) => return Err(ServiceError::Server {
+            Err(_) => return Err(ServiceError::Server {
                 message: Some(String::from(""))
             })
         };
         
-        let newUser = match NewUser::new(registerUser.username, registerUser.password) {
-            Ok(newUser) => newUser,
+        let new_user = match NewUser::new(register_user.username, register_user.password) {
+            Ok(new_user) => new_user,
             Err(e) => return Err(
                 ServiceError::Server {
                     message: Some(e)
@@ -119,7 +118,7 @@ impl  UserService for PsqlUserService {
         };
         let repo = &self.app_state.user_repository();
 
-        let user = match repo.create(newUser) {
+        let user = match repo.create(new_user) {
             Ok(user) => user,
             Err(e) => return Err(ServiceError::from_diesel_result_error(e))
         };
