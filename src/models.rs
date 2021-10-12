@@ -1,20 +1,37 @@
 use crate::schema::users;
 use crate::schema::posts;
+use crate::schema::user_tokens;
+use uuid::Uuid;
+extern crate bcrypt;
+use bcrypt::{DEFAULT_COST, hash, verify};
+use serde::Serialize;
 
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct User {
     pub id: i64,
     pub username: String,
     pub encrypted_password: String
 }
 
+#[derive(Queryable)]
+pub struct SimpleUser {
+    pub id: i64,
+    pub username: String,
+}
+
+#[derive(Queryable)]
+pub struct UserToken {
+    pub id: i64,
+    pub user_id: i64,
+    pub token: String
+}
 
 #[derive(Insertable)]
 #[table_name="users"]
-pub struct NewUser<'a> {
-    pub username: &'a str,
-    pub encrypted_password: &'a str 
+pub struct NewUser {
+    pub username: String,
+    pub encrypted_password: String 
 }
 
 
@@ -34,3 +51,54 @@ pub struct NewPost<'a> {
     pub user_id: i64
 }
 
+#[derive(Insertable)]
+#[table_name="user_tokens"]
+pub struct NewUserToken {
+    pub user_id: i64,
+    pub token: String
+}
+
+
+impl NewUserToken {
+
+    pub fn new(user_id: i64) -> Self {
+        return NewUserToken {
+            user_id: user_id,
+            token: Uuid::new_v4().to_string()
+        };
+    }
+}
+
+impl User {
+
+    pub fn check_password(&self, password: String) -> bool {
+        return match verify(password, &self.encrypted_password) {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+
+    pub fn set_password(&mut self, password: String) -> bool {
+        return match hash(password, DEFAULT_COST) {
+            Ok(encrypted_password) => {
+                self.encrypted_password = encrypted_password.to_string();
+                true
+            }
+            Err(_) => false,
+        }
+    }
+}
+
+impl NewUser {
+    pub fn new(username: String, password: String) -> Result<Self, String>{
+        return match hash(password, DEFAULT_COST) {
+            Ok(encrypted_password) => {
+                Ok(Self {
+                    username: username,
+                    encrypted_password: encrypted_password
+                })
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+}

@@ -1,6 +1,5 @@
 use crate::repositories::*;
 use diesel::pg::PgConnection;
-use crate::schema::posts;
 use crate::schema::users;
 extern crate diesel;
 use crate::models::*;
@@ -16,9 +15,7 @@ pub struct UserDAO {
     pub app_state: Box<AppState>
 }
 
-struct PostDAO<'a> {
-    pub connection: &'a PgConnection,
-}
+
 
 impl UserRepository for UserDAO {
     fn find(&self, id: &i64) -> Result<User, diesel::result::Error> {
@@ -46,8 +43,3 @@ impl UserRepository for UserDAO {
     }
 }
 
-impl UserDAO {
-    pub fn hoge(&self) -> String{
-        return String::from("hoge");
-    }
-}

@@ -1,44 +1,22 @@
 #[macro_use]
 extern crate diesel;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use rand::Rng;
 use diesel::pg::PgConnection;
 
-use diesel::prelude::*;
 mod repositories;
 mod dao;
 mod models;
-use crate::dao::*;
 mod schema;
 use crate::repositories::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use serde::Deserialize;
-use std::sync::Arc;
-use crate::models::NewUser;
-use crate::models::User;
-
-#[derive(Clone)]
-struct AppState<'a> {
-    pub pool: Box<Pool<ConnectionManager<PgConnection>>>,
-    pub hoge: &'a str,
-}
-
-impl<'a> AppState<'a> {
-    pub fn user_repository(&self) -> impl UserRepository {
-        
-        
-        return UserDAO {
-            pool: self.pool.clone()
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct Register {
-    username: String,
-    password: String
-}
+mod errors;
+mod service;
+use crate::service::UserService;
+mod state;
+use crate::state::AppState;
+use crate::service::RegisterUser;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -51,7 +29,6 @@ async fn main() -> std::io::Result<()> {
     
     let app_state = AppState {
         pool: Box::new(pool),
-        hoge: "hogehoge"
     };
     //let arc = Arc::new(app_state);
     let data = web::Data::new(app_state);
@@ -70,7 +47,7 @@ async fn main() -> std::io::Result<()> {
 }
 
 #[get("/")]
-async fn index<'a>(app_state: web::Data<AppState<'a>>) -> String {
+async fn index<'a>(app_state: web::Data<AppState>) -> String {
     let repo = &app_state.user_repository();
     return repo.message();
     
@@ -87,21 +64,19 @@ async fn echo(req_body: String) -> impl Responder {
 }
 
 #[post("/register")]
-async fn register<'a>(app_state: web::Data<AppState<'a>>, json: web::Json<Register>) -> impl Responder {
-    let repo = &app_state.user_repository();
-    let res = repo.create(NewUser{
-        username: &json.username,
-        encrypted_password: &json.password
-    });
-    match res {
+async fn register(app_state: web::Data<AppState>, json: web::Json<RegisterUser>) -> impl Responder {
+    match &app_state.user_service().register(json.0) {
         Ok(res) => {
-            return HttpResponse::Ok().body(format!("id: {}, username:{}", res.id, res.username));
+            return HttpResponse::Ok().json(res);
         }
         Err(err) => {
-            return HttpResponse::Ok().body(format!("error:{}", err));
+            return err.response();
         }
     }
+  
 }
+
+
 async fn manual_hello() -> impl Responder {
     return HttpResponse::Ok().body("Hey there!");
 }
