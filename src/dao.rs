@@ -7,10 +7,13 @@ use crate::models::*;
 use diesel::prelude::*;
 use diesel::r2d2::Pool;
 use diesel::r2d2::ConnectionManager;
+use crate::state::AppState;
+
 
 
 pub struct UserDAO {
-    pub pool: Box<Pool<ConnectionManager<PgConnection>>>
+    pub pool: Box<Pool<ConnectionManager<PgConnection>>>,
+    pub app_state: Box<AppState>
 }
 
 struct PostDAO<'a> {
