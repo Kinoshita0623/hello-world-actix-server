@@ -5,13 +5,16 @@ use uuid::Uuid;
 extern crate bcrypt;
 use bcrypt::{DEFAULT_COST, hash, verify};
 use serde::Serialize;
+use chrono::NaiveDateTime;
+use chrono::Utc;
 
-
-#[derive(Queryable, Serialize)]
+#[derive(Queryable)]
 pub struct User {
     pub id: i64,
     pub username: String,
-    pub encrypted_password: String
+    pub encrypted_password: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime
 }
 
 #[derive(Queryable)]
@@ -31,7 +34,9 @@ pub struct UserToken {
 #[table_name="users"]
 pub struct NewUser {
     pub username: String,
-    pub encrypted_password: String 
+    pub encrypted_password: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime 
 }
 
 
@@ -95,7 +100,9 @@ impl NewUser {
             Ok(encrypted_password) => {
                 Ok(Self {
                     username: username,
-                    encrypted_password: encrypted_password
+                    encrypted_password: encrypted_password,
+                    created_at: Utc::now().naive_utc(),
+                    updated_at: Utc::now().naive_utc()
                 })
             }
             Err(err) => Err(err.to_string()),

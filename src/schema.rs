@@ -20,6 +20,8 @@ table! {
         id -> Int8,
         username -> Varchar,
         encrypted_password -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

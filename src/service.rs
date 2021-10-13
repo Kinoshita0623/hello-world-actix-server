@@ -29,10 +29,17 @@ pub struct LogoutUser {
 }
 
 #[derive(Serialize)]
+pub struct SimpleUser {
+    pub username: String,
+    pub id: i64,
+}
+
+#[derive(Serialize)]
 pub struct AuthResult {
     pub token: String,
-    pub user: User,
+    pub user: SimpleUser,
 }
+
 
 
 pub trait UserService {
@@ -71,7 +78,10 @@ impl  UserService for PsqlUserService {
                 Ok(
                     AuthResult {
                         token: user_token.token,
-                            user: user
+                            user: SimpleUser {
+                                username: user.username,
+                                id: user.id,
+                            }
                         }
                 )
             }
@@ -120,7 +130,10 @@ impl  UserService for PsqlUserService {
 
         let user = match repo.create(new_user) {
             Ok(user) => user,
-            Err(e) => return Err(ServiceError::from_diesel_result_error(e))
+            Err(e) => {
+                println!("ユーザ作成中にエラー発生 e: {}", e);
+                return Err(ServiceError::from_diesel_result_error(e))
+            }
         };
         let token = NewUserToken::new(user.id);
         let user_token = match diesel::insert_into(user_tokens::table).values(token).get_result::<UserToken>(&connection) {
@@ -129,7 +142,10 @@ impl  UserService for PsqlUserService {
         };
         return Ok(AuthResult {
             token: user_token.token,
-            user: user
+            user: SimpleUser {
+                username: user.username,
+                id: user.id
+            }
         });
         
     }
