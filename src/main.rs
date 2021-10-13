@@ -10,7 +10,6 @@ mod schema;
 use crate::repositories::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use serde::Deserialize;
 mod errors;
 mod service;
 use crate::service::UserService;
@@ -39,6 +38,7 @@ async fn main() -> std::io::Result<()> {
             .service(index)
             .service(echo)
             .service(register)
+            .service(users)
             .route("/hey", web::get().to(manual_hello))
     })
     .bind("0.0.0.0:80")?
@@ -76,6 +76,23 @@ async fn register(app_state: web::Data<AppState>, json: web::Json<RegisterUser>)
   
 }
 
+#[get("/users")]
+async fn users(app_state: web::Data<AppState>) -> impl Responder {
+    match &app_state.user_repository().find_all() {
+        Ok(res) => {
+            let simple_users: Vec<service::SimpleUser> = res.iter().map(|user|{
+                return service::SimpleUser {
+                    username: user.username.clone(),
+                    id: user.id.clone()
+                }
+            }).collect();
+            return HttpResponse::Ok().json(simple_users);
+        }
+        Err(_) => {
+            return HttpResponse::Ok().body("Hey there!");  
+        }
+    }
+}
 
 async fn manual_hello() -> impl Responder {
     return HttpResponse::Ok().body("Hey there!");

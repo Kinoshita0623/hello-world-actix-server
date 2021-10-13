@@ -41,5 +41,11 @@ impl UserRepository for UserDAO {
     fn message(&self) -> String {
         return String::from("DAOからなのだ");
     }
+
+    fn find_all(&self) -> Result<Vec<User>, diesel::result::Error> {
+        let connection = &self.pool.get().expect("error");
+        let users = users::dsl::users.load(connection)?;
+        return Ok(users);
+    }
 }
 
